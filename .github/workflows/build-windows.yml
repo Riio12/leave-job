@@ -1,0 +1,50 @@
+name: Build Windows portable app
+
+on:
+  push:
+    branches: [main, "codex/**"]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-win-x64:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Publish single-file EXE
+        shell: pwsh
+        run: |
+          dotnet publish src/ExitPrivacyGuard/ExitPrivacyGuard.csproj `
+            --configuration Release `
+            --runtime win-x64 `
+            --self-contained true `
+            --output dist/win-x64 `
+            -p:PublishSingleFile=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -p:DebugType=None `
+            -p:DebugSymbols=false
+
+      - name: Package
+        shell: pwsh
+        run: |
+          Copy-Item src/ExitPrivacyGuard/启动说明.txt dist/win-x64/
+          Compress-Archive -Path dist/win-x64/* -DestinationPath leave-job-win-x64.zip
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: leave-job-win-x64
+          path: leave-job-win-x64.zip
+          if-no-files-found: error
+          retention-days: 30
